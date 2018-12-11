@@ -922,6 +922,6 @@ void DumpChanRes( shell *psh )
     cprintf( "\nMean  X      : %g", MeanX               );
     cprintf( "\nSigma X      : %g", SigmaX              );
     cprintf( "\nSigma X^2    : %g", SigmaX2             );
-    cprintf( "\nRow Index    : %u", toUint( BPARowIndex ) );
+    cprintf( "\nRow Idx      : %u", toUint( BPARowIndex ) );
     cprintf( "\n" );
 }
