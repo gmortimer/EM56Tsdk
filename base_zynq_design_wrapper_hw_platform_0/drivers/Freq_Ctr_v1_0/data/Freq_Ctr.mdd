@@ -1,0 +1,10 @@
+
+
+OPTION psf_version = 2.1;
+
+BEGIN DRIVER Freq_Ctr
+	OPTION supported_peripherals = (Freq_Ctr);
+	OPTION copyfiles = all;
+	OPTION VERSION = 1.0;
+	OPTION NAME = Freq_Ctr;
+END DRIVER
