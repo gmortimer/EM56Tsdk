@@ -50,19 +50,19 @@ static DemodData DmodPRS64QAM    [ SYS_MAX_CARRIERS  ];
 static cplx   TxPrs              [ SYS_MAX_CARRIERS  ];
 static double TxPrsPhase         [ SYS_MAX_CARRIERS  ];
 static cplx   RxPrsTD            [ SYS_MAX_CARRIERS  ];
-static cplx   RxPrsTDCorr        [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
-static cplx   RxPrsFD            [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
-static cplx   RxPrsFDCorr        [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
+static cplx   RxPrsTDCorr        [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static cplx   RxPrsFD            [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static cplx   RxPrsFDCorr        [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
 static cplx   RxPrsFDFinalCorr   [ SYS_MAX_CARRIERS  ];
 static cplx   RxPrsTDFinalCorr   [ SYS_MAX_CARRIERS  ];
-static double RxPrsPhase         [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
-static double RxPrsErrPhase      [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
+static double RxPrsPhase         [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static double RxPrsErrPhase      [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
 static double NormX              [ SYS_MAX_CARRIERS  ];
 static s32    sampleIdx1         [ SYS_MAX_CARRIERS  ];
 static s32    sampleIdx2         [ SYS_MAX_CARRIERS  ];
 static u32    nSams= 0;
-static double Y                  [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
-static double NormY              [ SYS_N_CHAN_PRSBPA ][ SYS_MAX_CARRIERS  ];
+static double Y                  [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static double NormY              [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
 static double MeanY              [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static double SigmaY             [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static double SigmaY2            [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -414,7 +414,7 @@ static void CalcPhaseError( PrsBPA *pd )
                 deltaErr = ErrPhiCIR[ j ] - ErrPhiCIR[ j - 1 ];
                 if ( deltaErr > DELTA_PHI_MAX )
                 {
-                    ErrPhiCIR[ j ] -= 2 * M_PI;;
+                    ErrPhiCIR[ j ] -= 2 * M_PI;
                 }
                 if ( deltaErr < -DELTA_PHI_MAX )
                 {
@@ -533,14 +533,14 @@ static void CalcDelta( PrsBPA *pd, s32 ridx )
         double A = SigmaY2 [ ridx - 1 ];
         double B = SigmaY2 [ ridx ];
         double C = SigmaY2 [ ridx + 1 ];
-        double R = ( A - C ) / ( 2 * ( A + B - 2 * C ));
+        double R = ( A - C ) / ( 2 * ( A + C - 2 * B ));
         double theta = 0.0;
         DVCPAR( deltafpp ) = FrqCorrFactor [ ridx ] + R * ( FrqCorrFactor [ ridx + 1 ] - FrqCorrFactor [ ridx ] );
         if ( R > 0 )
         {
-            theta = ( MeanY [ ridx ]      + R         * ( MeanY [ ridx + 1 ] - MeanY [ ridx ] ) ); // IG 06122018: Modified sign of theta as per spec
+            theta = -( MeanY [ ridx ]      + R         * ( MeanY [ ridx + 1 ] - MeanY [ ridx ] ) ); // IG 06122018: Modified sign of theta as per spec
         } else {
-            theta = ( MeanY [ ridx - 1 ]  + ( R - 1 ) * ( MeanY [ ridx ] - MeanY [ ridx - 1 ] ) ); // IG 06122018: Modified sign of theta as per spec
+            theta = -( MeanY [ ridx - 1 ]  + ( R + 1 ) * ( MeanY [ ridx ] - MeanY [ ridx - 1 ] ) ); // IG 06122018: Modified sign of theta as per spec
         }
         DVCPAR( theta0 ) = theta;
     }
