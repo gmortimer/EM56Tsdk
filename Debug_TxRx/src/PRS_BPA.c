@@ -8,8 +8,16 @@
 
 shell PrsBPAShell;
 
+PrsPhi txPrsPhi;
+
+
 extern cplx RxPRSTdCorFT      [ SYS_MAX_CARRIERS ];
 extern cplx RxPRSFdCordeltatp [ SYS_MAX_CARRIERS ];
+
+static void ClearData( PrsBPA *pd );
+static double PrsPhaseError( PrsBPA *pd, cplx *p, u32 i );
+static PrsPhase PrsPhiPhase( PrsBPA *pd, u32 n );
+static void PrsPhiInit ( PrsBPA *pd );
 
 void CMatDump      ( cplx   *m   , u32 nCol, u32 nRow, char name[]  );
 void CRowDump      ( cplx   *m   , u32 ncol, char name[] );
@@ -25,27 +33,23 @@ void URowDump      ( u32    *m   , u32 ncol, char name[] );
 void UColDump      ( u32    *m   , u32 nRow, char name[] );
 
 
+double SigmaYFinal  = 0.0;
+double SigmaXYFinal = 0.0;
+cplx   RxPrsTDCorrDfpp [ SYS_MAX_CARRIERS ];
+cplx   RxPrsFDCorrDfpp [ SYS_MAX_CARRIERS ];
+double RxPrsFDFinalCorrPhaseErr [ SYS_MAX_CARRIERS ];
 
-
-const double FrqCorrFactor       [ SYS_N_CHAN_PRSBPA ] = { -0.20, -0.15, -0.10, -0.05, 0.00, 0.05, 0.10, 0.15, 0.20 };
+const  double FrqCorrFactor       [ SYS_N_CHAN_PRSBPA ] = { -0.20, -0.15, -0.10, -0.05, 0.00, 0.05, 0.10, 0.15, 0.20 };
 
 static s32 BPARowIndex            = 0;
 static s32 ridx                   = 0;
 
-static double SigmaErrPhiCIR = 0.0;
-static double Theta0CIR      = 0.0;
-static double ErrPhiCIR  [ SYS_MAX_CARRIERS ];
-static cplx   RxPrsFDCIR [ SYS_MAX_CARRIERS ];
+static double SigmaErrPhiCIR     = 0.0;
+static double Theta0CIR          = 0.0;
+//static double ErrPhiCIR          [ SYS_MAX_CARRIERS  ];
+//static cplx   RxPrsFDCIR         [ SYS_MAX_CARRIERS  ];
 
 static cplx   PRSBuf             [ SYS_MAX_CARRIERS  ];
-static cplx   PRSBufRot          [ SYS_MAX_CARRIERS  ];
-static cplx   RxPrsBufRot        [ SYS_MAX_CARRIERS  ];
-static DemodData DmodRxPrs4QAM   [ SYS_MAX_CARRIERS  ];
-static DemodData DmodRxPrs16QAM  [ SYS_MAX_CARRIERS  ];
-static DemodData DmodRxPrs64QAM  [ SYS_MAX_CARRIERS  ];
-static DemodData DmodPRS4QAM     [ SYS_MAX_CARRIERS  ];
-static DemodData DmodPRS16QAM    [ SYS_MAX_CARRIERS  ];
-static DemodData DmodPRS64QAM    [ SYS_MAX_CARRIERS  ];
 
 static cplx   TxPrs              [ SYS_MAX_CARRIERS  ];
 static double TxPrsPhase         [ SYS_MAX_CARRIERS  ];
@@ -57,21 +61,45 @@ static cplx   RxPrsFDFinalCorr   [ SYS_MAX_CARRIERS  ];
 static cplx   RxPrsTDFinalCorr   [ SYS_MAX_CARRIERS  ];
 static double RxPrsPhase         [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
 static double RxPrsErrPhase      [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
-static double NormX              [ SYS_MAX_CARRIERS  ];
 static s32    sampleIdx1         [ SYS_MAX_CARRIERS  ];
 static s32    sampleIdx2         [ SYS_MAX_CARRIERS  ];
 static u32    nSams= 0;
+
+static double YA                 [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static double MeanYA             [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double NormYA             [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static double SigmaYA            [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double SigmaY2A           [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double SigmaXYA           [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+static double YB                 [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static double MeanYB             [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double NormYB             [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
+static double SigmaYB            [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double SigmaY2B           [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double SigmaXYB           [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
 static double Y                  [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
-static double NormY              [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
 static double MeanY              [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+static double NormY              [ SYS_N_CHAN_PRSBPA + 1 ][ SYS_MAX_CARRIERS  ];
 static double SigmaY             [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static double SigmaY2            [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static double SigmaXY            [ SYS_N_CHAN_PRSBPA + 1 ] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
 static double X                  [ SYS_MAX_CARRIERS  ];
 static double MeanX              = 0.0;
+static double NormX              [ SYS_MAX_CARRIERS  ];
 static double SigmaX             = 0.0;
 static double SigmaX2            = 0.0;
 
+static cplx   PRSBufRot          [ SYS_MAX_CARRIERS  ];
+static cplx   RxPrsBufRot        [ SYS_MAX_CARRIERS  ];
+static DemodData DmodRxPrs4QAM   [ SYS_MAX_CARRIERS  ];
+static DemodData DmodRxPrs16QAM  [ SYS_MAX_CARRIERS  ];
+static DemodData DmodRxPrs64QAM  [ SYS_MAX_CARRIERS  ];
+static DemodData DmodPRS4QAM     [ SYS_MAX_CARRIERS  ];
+static DemodData DmodPRS16QAM    [ SYS_MAX_CARRIERS  ];
+static DemodData DmodPRS64QAM    [ SYS_MAX_CARRIERS  ];
 double BerQPSK                   = 0.0;
 double Ber4QAM                   = 0.0;
 double Ber16QAM                  = 0.0;
@@ -114,11 +142,11 @@ static void DvcDataDump  ( PrsBPA *pd );
 static void ReadPRSData( PrsBPA *pd );
 static void CopyPRSPhase( PrsBPA *pd );
 static void CalcDelta( PrsBPA *pd, s32 ridx );
-static void CalcLinReg( PrsBPA * pd, s32 ridx );
 static void CalcPhaseError( PrsBPA *pd );
-static void FinalCorr( PrsBPA *pd, s32 ridx );
+static void FinalCorr( PrsBPA *pd );
+static void CalcLinReg( PrsBPA *pd );
 static void CalcCorr( PrsBPA *pd, u32 cidx, double freqCorrFact, double timeCorrFact );
-static void CalcBER( PrsBPA *pd, s32 ridx );
+//static void CalcBER( PrsBPA *pd, s32 ridx );
 
 // =================================================
 // Device Structure Member Functions (public access)
@@ -246,6 +274,9 @@ void PrsBPAInit( PrsBPA *pd, const char *Name, u32 BaseAddr, SysCtrl *pSysCtrl, 
     DvcDataInit( pd );
     SYSRESET( pd );
     SetParams( pd );
+    txPrsPhi.init = false;
+    txPrsPhi.Initialise = PrsPhiInit;
+    txPrsPhi.Phase      = PrsPhiPhase;
 }
 
 //========================
@@ -330,6 +361,76 @@ static void SysDescDump( PrsBPA *pd )
 //     return ( SYSPTR( pBuf[ addr ] ));
 // }
 
+static void ClearData( PrsBPA * pd )
+{
+    BPARowIndex        = 0;
+    ridx               = 0;
+    nSams              = 0;
+
+    SigmaErrPhiCIR     = 0.0;
+    Theta0CIR          = 0.0;
+
+
+//    ( void ) memsetd( ( void * ) ErrPhiCIR        , 0.0, SIZE( ErrPhiCIR        , double ) );
+//    ( void ) memsetc( ( void * ) RxPrsFDCIR       , 0.0, SIZE( RxPrsFDCIR       , cplx   ) );
+    ( void ) memsetc( ( void * ) PRSBuf           , 0.0, SIZE( PRSBuf           , cplx   ) );
+    ( void ) memsetc( ( void * ) PRSBufRot        , 0.0, SIZE( PRSBufRot        , cplx   ) );
+    ( void ) memsetc( ( void * ) RxPrsBufRot      , 0.0, SIZE( RxPrsBufRot      , cplx   ) );
+    ( void ) memsetc( ( void * ) TxPrs            , 0.0, SIZE( TxPrs            , cplx   ) );
+    ( void ) memsetd( ( void * ) TxPrsPhase       , 0.0, SIZE( TxPrsPhase       , double ) );
+    ( void ) memsetc( ( void * ) RxPrsTD          , 0.0, SIZE( RxPrsTD          , cplx   ) );
+    ( void ) memsetc( ( void * ) RxPrsTDCorr      , 0.0, SIZE( RxPrsTDCorr      , cplx   ) );
+    ( void ) memsetc( ( void * ) RxPrsFD          , 0.0, SIZE( RxPrsFD          , cplx   ) );
+    ( void ) memsetc( ( void * ) RxPrsFDCorr      , 0.0, SIZE( RxPrsFDCorr      , cplx   ) );
+    ( void ) memsetc( ( void * ) RxPrsFDFinalCorr , 0.0, SIZE( RxPrsFDFinalCorr , cplx   ) );
+    ( void ) memsetc( ( void * ) RxPrsTDFinalCorr , 0.0, SIZE( RxPrsTDFinalCorr , cplx   ) );
+    ( void ) memsetd( ( void * ) RxPrsPhase       , 0.0, SIZE( RxPrsPhase       , double ) );
+    ( void ) memsetd( ( void * ) RxPrsErrPhase    , 0.0, SIZE( RxPrsErrPhase    , double ) );
+    ( void ) memsetd( ( void * ) NormX            , 0.0, SIZE( NormX            , double ) );
+    ( void ) memset ( ( void * ) sampleIdx1, 0    , sizeof( sampleIdx1 ) );
+    ( void ) memset ( ( void * ) sampleIdx2, 0    , sizeof( sampleIdx2 ) );
+
+
+    ( void ) memsetd( ( void * ) &X         [ 0 ] , 0.0, SIZE( X                , double ) );
+    MeanX   = 0.0;
+    SigmaX  = 0.0;
+    SigmaX2 = 0.0;
+    ( void ) memsetd( ( void * ) &NormX     [ 0 ] , 0.0, SIZE( NormX            , double ) );
+    ( void ) memsetd( ( void * ) &YA        [ 0 ] , 0.0, SIZE( YA               , double ) );
+    ( void ) memsetd( ( void * ) &MeanYA    [ 0 ] , 0.0, SIZE( MeanYA           , double ) );
+    ( void ) memsetd( ( void * ) &NormYA    [ 0 ] , 0.0, SIZE( NormYA           , double ) );
+    ( void ) memsetd( ( void * ) &SigmaYA   [ 0 ] , 0.0, SIZE( SigmaYA          , double ) );
+    ( void ) memsetd( ( void * ) &SigmaY2A  [ 0 ] , 0.0, SIZE( SigmaY2A         , double ) );
+    ( void ) memsetd( ( void * ) &SigmaXYA  [ 0 ] , 0.0, SIZE( SigmaXYA         , double ) );
+    ( void ) memsetd( ( void * ) &YB        [ 0 ] , 0.0, SIZE( YB               , double ) );
+    ( void ) memsetd( ( void * ) &MeanYB    [ 0 ] , 0.0, SIZE( MeanYB           , double ) );
+    ( void ) memsetd( ( void * ) &NormYB    [ 0 ] , 0.0, SIZE( NormYB           , double ) );
+    ( void ) memsetd( ( void * ) &SigmaYB   [ 0 ] , 0.0, SIZE( SigmaYB          , double ) );
+    ( void ) memsetd( ( void * ) &SigmaY2B  [ 0 ] , 0.0, SIZE( SigmaY2B         , double ) );
+    ( void ) memsetd( ( void * ) &SigmaXYB  [ 0 ] , 0.0, SIZE( SigmaXYB         , double ) );
+    ( void ) memsetd( ( void * ) &Y         [ 0 ] , 0.0, SIZE( Y                , double ) );
+    ( void ) memsetd( ( void * ) &MeanY     [ 0 ] , 0.0, SIZE( MeanY            , double ) );
+    ( void ) memsetd( ( void * ) &NormY     [ 0 ] , 0.0, SIZE( NormY            , double ) );
+    ( void ) memsetd( ( void * ) &SigmaY    [ 0 ] , 0.0, SIZE( SigmaY           , double ) );
+    ( void ) memsetd( ( void * ) &SigmaY2   [ 0 ] , 0.0, SIZE( SigmaY2          , double ) );
+    ( void ) memsetd( ( void * ) &SigmaXY   [ 0 ] , 0.0, SIZE( SigmaXY          , double ) );
+
+    ( void ) memset ( ( void * ) DmodRxPrs4QAM    , 0, sizeof( DmodRxPrs4QAM   ) );
+    ( void ) memset ( ( void * ) DmodRxPrs16QAM   , 0, sizeof( DmodRxPrs16QAM  ) );
+    ( void ) memset ( ( void * ) DmodRxPrs64QAM   , 0, sizeof( DmodRxPrs64QAM  ) );
+    ( void ) memset ( ( void * ) DmodPRS4QAM      , 0, sizeof( DmodPRS4QAM     ) );
+    ( void ) memset ( ( void * ) DmodPRS16QAM     , 0, sizeof( DmodPRS16QAM    ) );
+    ( void ) memset ( ( void * ) DmodPRS64QAM     , 0, sizeof( DmodPRS64QAM    ) );
+
+    BerQPSK  = 0.0;
+    Ber4QAM  = 0.0;
+    Ber16QAM = 0.0;
+    Ber64QAM = 0.0;
+    Qfr4QAM  = 0.0;
+    Qfr16QAM = 0.0;
+    Qfr64QAM = 0.0;
+}
+
 
 static void ReadPRSData( PrsBPA *pd )
 {
@@ -372,60 +473,31 @@ static void CalcPhaseError( PrsBPA *pd )
     u32 nFFT      = SYSPAR( nFFT );
     double nFFTd  = ( double ) nFFT;
     double nSamsd = ( double ) nSams;
+    u32 j = 0;
 
     MeanX = 0.0; SigmaX = 0.0; SigmaX2 = 0.0;
     for ( u32 i = 0; i < nFFT; i++ )
     {
         if ( sampleIdx1 [ i ] >= 0 )
         {
-            X [ i ] = ( double ) sampleIdx2 [ i ];
-            SigmaX += X [ i ];
-        }
-        else
-        {
-            X [ i ] = 0.0;
+            X [ j ] = ( double ) sampleIdx2 [ i ];
+            SigmaX += X [ j ];
+            j++;
         }
     }
     MeanX   = SigmaX / nSamsd;
-    SigmaX = 0;
+
+    j = 0;
     for ( u32 i = 0; i < nFFT; i++ )
     {
         if ( sampleIdx1 [ i ] >= 0 )
         {
-            NormX [ i ] = X [ i ] - MeanX;
-            SigmaX  += NormX [ i ];
-            SigmaX2 += NormX [ i ] * NormX [ i ];
-        }
-    }
-
-
-    fft( RxPrsFDCIR, RxPrsTD, nFFT );
-
-    double deltaErr = 0.0;
-    u32 j = 0;
-    SigmaErrPhiCIR = 0.0;
-    for ( s32 i = 0; i < nFFT; i++ )
-    {
-        if ( sampleIdx1 [ i ] >= 0 )
-        {
-            ErrPhiCIR [ j ]  = carg( TxPrs [ i ] ) - carg( RxPrsFDCIR [ i ] );
-            if( j > 0 )
-            {
-                deltaErr = ErrPhiCIR[ j ] - ErrPhiCIR[ j - 1 ];
-                if ( deltaErr > DELTA_PHI_MAX )
-                {
-                    ErrPhiCIR[ j ] -= 2 * M_PI;
-                }
-                if ( deltaErr < -DELTA_PHI_MAX )
-                {
-                    ErrPhiCIR[ j ] += 2 * M_PI;
-                }
-            }
-            SigmaErrPhiCIR += ErrPhiCIR[ j ];
+            NormX [ j ] = X [ j ] - MeanX;
+            SigmaX  += NormX [ j ];
+            SigmaX2 += NormX [ j ] * NormX [ j ];
             j++;
         }
     }
-    Theta0CIR = SigmaErrPhiCIR / nSamsd;
 
     ridx = 0;
     for ( u32 i = 0; i < SYS_N_CHAN_PRSBPA; i++ )
@@ -441,23 +513,100 @@ static void CalcPhaseError( PrsBPA *pd )
 }
 
 
-static void FinalCorr( PrsBPA *pd, s32 ridx )
+static void FinalCorr( PrsBPA *pd )
 {
     u32    nFFT  = SYSPAR( nFFT );
     double nFFTd = ( double ) nFFT;
-    double   freqCorrFact = 2.0 * M_PI * ( DVCPAR( deltafpp ) + FrqCorrFactor[ ridx ] ) / nFFTd;
-    double   timeCorrFact = 2.0 * M_PI * DVCPAR( deltatpp ) / nFFTd;
-    CalcCorr( pd, SYS_N_CHAN_PRSBPA, freqCorrFact, timeCorrFact );
-    memcpy( RxPrsFDFinalCorr, RxPrsFDCorr[ SYS_N_CHAN_PRSBPA ], nFFT * sizeof( cplx ) );
+    double deltafpp = DVCPAR( deltafpp );
+    double   freqCorrFact = 2.0 * M_PI * deltafpp / nFFTd;
+    CalcCorr( pd, SYS_N_CHAN_PRSBPA, freqCorrFact, 0.0 );
+    fft( RxPrsFDCorrDfpp, RxPrsTDCorr [ SYS_N_CHAN_PRSBPA ], nFFT );
+
+    CalcLinReg( pd );
+    DVCPAR( theta0 ) = -DVCPAR( alpha );
     double theta0 = DVCPAR( theta0 );
     cplx phaseCorr = cexp( I * theta0 );
     for ( int i = 0; i < nFFT; i++ )
     {
-        RxPrsFDFinalCorr [ i ] = RxPrsFDFinalCorr [ i ] * phaseCorr;
+        RxPrsFDFinalCorr [ i ]    = RxPrsFDCorrDfpp [ i ] * phaseCorr;
+    }
+    double SigmaA     = 0.0;
+    double GainCorr   = 0.0;
+    for ( int i = 0; i < nFFT; i++ )
+    {
+        if ( sampleIdx1 [ i ] >= 0 ) {
+            SigmaA += cabs( RxPrsFDFinalCorr [ i ] );
+        }
+    }
+    GainCorr = ( double ) nSams / SigmaA;
+    for ( int i = 0; i < nFFT; i++ )
+    {
+        RxPrsFDFinalCorr [ i ] *= GainCorr / nFFTd;
     }
     ifft( RxPrsTDFinalCorr, RxPrsFDFinalCorr, nFFT );
+}
+
+// The PrsPHI Object is not currently used.
+PrsPhase PrsPhiPhase( PrsBPA *pd, u32 n ) {
+    PrsPhi *ps = pd->pPrsPhi;
+    if (! ps->init ) {
+        ps->Initialise( pd );
+    }
+    return ( ps->phase [ n ] );
+}
+
+void PrsPhiInit ( PrsBPA *pd )
+{
+    u32 nFFT = SYSPAR( nFFT );
+    PrsPhi *ps = pd->pPrsPhi;
+    if ( ps->init == false )
+    {
+        for ( int n = 0; n < nFFT; n++ )
+        {
+            u32 u = SYSPTR( pTxSourceBuf [ n ] );
+            if        ( u == 0 ) {
+                ps->phase [ n ] = PHI_UNDEF;
+            } else if ( u & 0x00008000 ) {
+                ps->phase [ n ] = PHI_PI;
+            } else if ( u & 0x00007FFF ) {
+                ps->phase [ n ] = PHI_ZERO;
+            } else if ( u & 0x80000000 ) {
+                ps->phase [ n ] = PHI_3_PI_BY_2;
+            } else if ( u & 0x7FFF0000 ) {
+                ps->phase [ n ] = PHI_PI_BY_2;
+            }
+        }
+        ps->init = true;
+    }
 
 }
+
+
+static double PrsPhaseError( PrsBPA *pd, cplx *p, u32 i )
+{
+    cplx z = 0.0;
+    txPrsPhi.Initialise( pd );
+    switch ( txPrsPhi.Phase( pd, i ) )
+    {
+    case PHI_ZERO :
+        z = p [ i ];
+        break;
+    case PHI_PI_BY_2 :
+        z = cimag( p [ i ] );
+        break;
+    case PHI_PI :
+        z = I * cimag( p [ i ] ) - creal( p [ i ] );
+        break;
+    case PHI_3_PI_BY_2 :
+        z = - cimag( p [ i ] );
+        break;
+    default:
+        return ( 0 );
+    }
+    return( carg( z ) > 0 ? carg( z ) : 2 * M_PI + carg( z ) );
+}
+// End of PrsPhi object
+
 
 static void CalcCorr( PrsBPA *pd, u32 cidx, double freqCorrFact, double timeCorrFact )
 {
@@ -470,49 +619,70 @@ static void CalcCorr( PrsBPA *pd, u32 cidx, double freqCorrFact, double timeCorr
     }
     fft( RxPrsFD[ cidx ], RxPrsTDCorr[ cidx ], nFFT );
 
-    double deltaErr = 0.0;
-    double SY       = 0.0;
+    double SYA      = 0.0;
+    double SYB      = 0.0;
+    double ErrPhase = 0.0;
+
+
     u32 j = 0;
     for ( int i = 0; i < nFFT; i ++) {
         if ( sampleIdx1 [ i ] >= 0 ) {
             cplx timeCorr    = cexp( I * timeCorrFact * ( double ) sampleIdx2[ i ] );
             RxPrsFDCorr [ cidx ][ i ]  = timeCorr * RxPrsFD [ cidx ][ i ];
             RxPrsPhase  [ cidx ][ i ]  = carg( RxPrsFDCorr  [ cidx ][ i ] );
-            RxPrsErrPhase [ cidx ][ j ] = RxPrsPhase[ cidx ][ i ] - TxPrsPhase [ i ];
-            if( j > 0 )
-            {
-                deltaErr = RxPrsErrPhase [ cidx ][ j ] - RxPrsErrPhase [ cidx ][ j - 1 ];
-                if ( deltaErr > DELTA_PHI_MAX )
-                {
-                    RxPrsErrPhase [ cidx ][ j ] -= 2 * M_PI;
-                }
-                if ( deltaErr < -DELTA_PHI_MAX )
-                {
-                    RxPrsErrPhase [ cidx ][ j ] += 2 * M_PI;
-                }
+            ErrPhase = RxPrsPhase[ cidx ][ i ] - TxPrsPhase [ i ];
+            YA [ cidx ][ j ] = ErrPhase;
+            if ( YA [ cidx ][ j ] > M_PI ) {
+                YA [ cidx ][ j ] = YA [ cidx ][ j ] - 2.0 * M_PI;
             }
-            Y       [ cidx ][ j ] = RxPrsErrPhase [ cidx ][ j ];
-            SY      += Y [ cidx ][ j ];
+            if ( YA [ cidx ][ j ] <  -M_PI ) {
+                YA [ cidx ][ j ] = YA [ cidx ][ j ] + 2.0 * M_PI;
+            }
+            SYA += YA [ cidx ][ j ];
+
+            YB [ cidx ][ j ] = ErrPhase;
+            if ( YB [ cidx ][ j ] < 0 ) {
+                YB [ cidx ][ j ] = YB [ cidx ][ j ] + 2.0 * M_PI;
+            }
+            if ( YB [ cidx ][ j ] >  ( 2 * M_PI ) ) {
+                YB [ cidx ][ j ] = YB [ cidx ][ j ] - 2.0 * M_PI;
+            }
+            SYB += YB [ cidx ][ j ];
+
             j++;
-        }
-        else
-        {
-            RxPrsFDCorr   [ cidx ][ i ] = 0.0;
-            RxPrsPhase    [ cidx ][ i ] = 0.0;
-            RxPrsErrPhase [ cidx ][ i ] = 0.0;
         }
     }
 
 
-    MeanY   [ cidx ]   = SY / ( double ) nSams;
-    SigmaY  [ cidx ]   = 0.0;
-    SigmaXY [ cidx ]   = 0.0;
-    SigmaY2 [ cidx ]   = 0.0;
+    MeanYA    [ cidx ] = SYA / ( double ) nSams;
+    MeanYB    [ cidx ] = SYB / ( double ) nSams;
     for ( u32 j = 0; j < nSams; j++ ) {
-        NormY   [ cidx ][ j ] = Y [ cidx ][ j ] - MeanY [ cidx ];
-        SigmaY  [ cidx ] += NormY [ cidx ][ j ];
-        SigmaY2 [ cidx ] += NormY [ cidx ][ j ] * NormY [ cidx ][ j ];
-        SigmaXY [ cidx ] += NormY [ cidx ][ j ] * NormX [ j ];
+        NormYA   [ cidx ][ j ] = YA [ cidx ][ j ] - MeanYA [ cidx ];
+        SigmaYA  [ cidx ] +=     YA [ cidx ][ j ];
+        SigmaY2A [ cidx ] += NormYA [ cidx ][ j ] * NormYA [ cidx ][ j ];
+        SigmaXYA [ cidx ] += NormYA [ cidx ][ j ] * NormX [ j ];
+        NormYB   [ cidx ][ j ] = YB [ cidx ][ j ] - MeanYB [ cidx ];
+        SigmaYB  [ cidx ] +=     YB [ cidx ][ j ];
+        SigmaY2B [ cidx ] += NormYB [ cidx ][ j ] * NormYB [ cidx ][ j ];
+        SigmaXYB [ cidx ] += NormYB [ cidx ][ j ] * NormX [ j ];
+    }
+
+    for ( u32 j = 0; j < nSams; j++ ) {
+        if ( SigmaY2A [ cidx ] < SigmaY2B [ cidx ] ) {
+            Y        [ cidx ][ j ] = YA     [ cidx ][ j ];
+            MeanY    [ cidx ]      = MeanYA [ cidx ];
+            NormY    [ cidx ][ j ] = NormYA [ cidx ][ j ];
+        } else {
+            Y        [ cidx ][ j ] = YB     [ cidx ][ j ];
+            MeanY    [ cidx ]      = MeanYB [ cidx ];
+            NormY    [ cidx ][ j ] = NormYB [ cidx ][ j ];
+        }
+    }
+
+    for ( u32 j = 0; j < nSams; j++ ) {
+        SigmaY   [ cidx ] +=     Y [ cidx ][ j ];
+        SigmaY2  [ cidx ] += NormY [ cidx ][ j ] * NormY [ cidx ][ j ];
+        SigmaXY  [ cidx ] += NormY [ cidx ][ j ] * NormX [ j ];
     }
 }
 
@@ -534,113 +704,28 @@ static void CalcDelta( PrsBPA *pd, s32 ridx )
         double B = SigmaY2 [ ridx ];
         double C = SigmaY2 [ ridx + 1 ];
         double R = ( A - C ) / ( 2 * ( A + C - 2 * B ));
-        double theta = 0.0;
         DVCPAR( deltafpp ) = FrqCorrFactor [ ridx ] + R * ( FrqCorrFactor [ ridx + 1 ] - FrqCorrFactor [ ridx ] );
-        if ( R > 0 )
-        {
-            theta = -( MeanY [ ridx ]      + R         * ( MeanY [ ridx + 1 ] - MeanY [ ridx ] ) ); // IG 06122018: Modified sign of theta as per spec
-        } else {
-            theta = -( MeanY [ ridx - 1 ]  + ( R + 1 ) * ( MeanY [ ridx ] - MeanY [ ridx - 1 ] ) ); // IG 06122018: Modified sign of theta as per spec
-        }
-        DVCPAR( theta0 ) = theta;
+        Theta0CIR = -MeanY[ ( SYS_N_CHAN_PRSBPA - 1 ) / 2 ];
     }
 }
 
-static void CalcLinReg( PrsBPA * pd, s32 ridx )
+static void CalcLinReg( PrsBPA *pd )
 {
-    double nAlpha = MeanY   [ ridx ] * SigmaX2 - MeanX * SigmaXY[ ridx ];
-    double nBeta  = SigmaXY [ ridx ] - MeanX * SigmaY[ ridx ];
-    double d      = SigmaX2 - ( double ) SYSPAR( nFFT ) * SQUARE( SigmaX );
-    DVCPAR( alpha )    = nAlpha / d;
-    DVCPAR( beta  )    = nBeta  / d;
-    DVCPAR( deltatpp ) = DVCPAR( beta );
+    double beta   = SigmaX * SigmaY [ SYS_N_CHAN_PRSBPA ] / SigmaX2;
+    double alpha  = MeanY [ SYS_N_CHAN_PRSBPA ] - beta;
+    DVCPAR( beta ) = beta;
+    DVCPAR( deltatpp ) = beta;
+    DVCPAR( alpha ) = alpha;
 }
-
-
-static void CalcBER( PrsBPA *pd, s32 ridx )
-{
-    u32 nFFT = SYSPAR( nFFT );
-    cplx *pRxPrs = RxPrsFDFinalCorr;
-    cplx *pPRS = PRSBuf;
-    cplx rot45 = exp( 1i * M_PI / 4 );
-    double absMean = 0.0;
-    double nMean   = 0.0;
-
-    // 1. Prepare RxPrsata, normalise gain
-    // First, Rotate by +45 degrees to convert QPSK to QAM
-    cplx z = 0.0;
-    for ( int i = 0; i < nFFT; i++ )
-    {
-        z = rot45 * pPRS [ i ];
-        PRSBufRot [ i ] = z;
-        z = rot45 * pRxPrs [ i ];
-        RxPrsBufRot [ i ] = z;
-        // update average only if non-zero data transmitted
-        if ( cabs( pPRS [ i ] ) > 0.01 )
-        {
-            absMean += cabs( z );
-            nMean   += 1;
-        }
-    }
-    absMean = absMean / nMean;
-    // Now normalise gain so that signal has average length = 2048 / SQRT2:
-    cplx DemodScaleFactor = 2048.0 + 0.0 * I;
-    for ( int i = 0; i < nFFT; i++ )
-    {
-        RxPrsBufRot [ i ] = RxPrsBufRot [ i ] * DemodScaleFactor / ( absMean + 0.0 * I );
-        PRSBufRot [ i ] = PRSBufRot [ i ] * DemodScaleFactor;
-    }
-
-    //2. For three modulation schemes, demodulate data
-    //   and count bit errors
-    DDUtilCreateDemod( MOD_4QAM );
-    Qfr4QAM = 0.0;
-    u32 errCtr = 0;
-    for ( int i = 0; i < nFFT; i++ )
-    {
-        DmodRxPrs4QAM  [ i ] = DDUtilDemodulate( CplxtoCplx32( RxPrsBufRot [ i ] ));
-        DmodPRS4QAM  [ i ] = DDUtilDemodulate( CplxtoCplx32( PRSBufRot [ i ] ));
-        errCtr   += HammingDist( DmodRxPrs4QAM [ i ].word, DmodPRS4QAM [ i ].word );
-    }
-    Ber4QAM  = ( double ) errCtr / nMean;
-
-    DDUtilCreateDemod( MOD_16QAM );
-    Qfr16QAM = 0.0;
-    errCtr   = 0;
-    for ( int i = 0; i < nFFT; i++ )
-    {
-        DmodRxPrs16QAM [ i ] = DDUtilDemodulate( CplxtoCplx32( RxPrsBufRot [ i ] ));
-        DmodPRS16QAM [ i ] = DDUtilDemodulate( CplxtoCplx32( PRSBufRot [ i ] ));
-        errCtr   += HammingDist( DmodRxPrs16QAM [ i ].word, DmodPRS16QAM [ i ].word );
-    }
-    Ber16QAM  = ( double ) errCtr / nMean;
-
-
-    DDUtilCreateDemod( MOD_64QAM );
-    Qfr64QAM = 0.0;
-    errCtr   = 0;
-    for ( int i = 0; i < nFFT; i++ )
-    {
-        DmodRxPrs64QAM [ i ] = DDUtilDemodulate( CplxtoCplx32( RxPrsBufRot [ i ] ));
-        DmodPRS64QAM [ i ] = DDUtilDemodulate( CplxtoCplx32( PRSBufRot [ i ] ));
-        errCtr   += HammingDist( DmodRxPrs64QAM [ i ].word, DmodPRS64QAM [ i ].word );
-    }
-    Ber64QAM  = ( double ) errCtr / nMean;
-}
-
-
-
-
 
 void CalcDeltas( PrsBPA *pd )
 {
+    ClearData( pd );
     ReadPRSData( pd );
     CopyPRSPhase( pd );
     CalcPhaseError( pd );
     CalcDelta  ( pd, ridx );
-    CalcLinReg ( pd, ridx );
-    FinalCorr  ( pd, ridx );
-//    CalcBER    ( pd, ridx );
+    FinalCorr  ( pd );
     DumpCorr   ( pd );
 }
 
@@ -668,23 +753,20 @@ void DumpCorr( PrsBPA *pd )
     cprintf( "Frequency          = %s\n",   RFFstrs [ SYSPAR( TxRxFreq  ) ] );
     cprintf( "Modulation         = %s\n",   Modstrs [ SYSPAR( ModType   ) ] );
     cprintf( "Bandwidth          = %u%%\n", toUint( SYSPAR( BWPercent ) ) );
-    cprintf( "Soft decision bits = %u\n",  SYS_N_SOFT_BITS );
+    cprintf( "Soft decision bits = %u\n",   SYS_N_SOFT_BITS );
     cprintf( "\n" );
-    cprintf( "DeltaT             = %i\n",  toInt( DVCPAR( DeltaT   ) ) );
-    cprintf( "deltat'            = %g\n",  DVCPAR( deltatp  ) );
-    cprintf( "deltat''           = %g\n",  DVCPAR( deltatpp ) );
-    cprintf( "DeltaF             = %i\n",  toInt( DVCPAR( DeltaF   ) ) );
-    cprintf( "deltaf'            = %g\n",  DVCPAR( deltafp  ) );
-    cprintf( "deltaf''           = %g\n",  DVCPAR( deltafpp ) );
+    cprintf( "DeltaT             = %i\n",   toInt( DVCPAR( DeltaT   ) ) );
+    cprintf( "deltat'            = %g\n",   DVCPAR( deltatp  ) );
+    cprintf( "deltat''           = %g\n",   DVCPAR( deltatpp ) );
+    cprintf( "DeltaF             = %i\n",   toInt( DVCPAR( DeltaF   ) ) );
+    cprintf( "deltaf'            = %g\n",   DVCPAR( deltafp  ) );
+    cprintf( "deltaf''           = %g\n",   DVCPAR( deltafpp ) );
     cprintf( "theta0             = %g deg\n", DVCPAR( theta0 ) * 180.0 / M_PI );
     cprintf( "theta0CIR          = %g deg\n", Theta0CIR * 180.0 / M_PI );
-    cprintf( "alpha              = %g\n",  DVCPAR( alpha  ) );
-    cprintf( "beta               = %g\n",  DVCPAR( beta   ) );
-    cprintf( "Combined delta f   = %g\n",  DVCPAR( deltafp ) + DVCPAR( deltafpp ));
-    cprintf( "Sigma Error^2      = %g\n",  SigmaY2 [ SYS_N_CHAN_PRSBPA ] );
-    cprintf( "BER ( 4-QAM )      = %g, Q-Factor = %g\n", Ber4QAM , Qfr4QAM  );
-    cprintf( "BER ( 16-QAM )     = %g, Q-Factor = %g\n", Ber16QAM, Qfr16QAM );
-    cprintf( "BER ( 64-QAM )     = %g, Q-Factor = %g\n", Ber64QAM, Qfr64QAM );
+    cprintf( "alpha              = %g\n",   DVCPAR( alpha  ) );
+    cprintf( "beta               = %g\n",   DVCPAR( beta   ) );
+    cprintf( "Combined delta f   = %g\n",   DVCPAR( deltafp ) + DVCPAR( deltafpp ));
+    cprintf( "Sigma Error^2      = %g\n",   SigmaY2 [ SYS_N_CHAN_PRSBPA ] );
     cprintf( "\n" );
 }
 
@@ -925,3 +1007,4 @@ void DumpChanRes( shell *psh )
     cprintf( "\nRow Idx      : %u", toUint( BPARowIndex ) );
     cprintf( "\n" );
 }
+

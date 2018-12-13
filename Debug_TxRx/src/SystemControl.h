@@ -560,6 +560,8 @@ struct sPrsBPAData {
     u32 TxBlockCtr;
 };
 
+typedef struct sprsphi PrsPhi;
+
 typedef struct sPrsBPA PrsBPA;
 struct sPrsBPA {
     SysDvce        *pSysDvce;
@@ -570,6 +572,7 @@ struct sPrsBPA {
     void (* DumpCorrSymbFd ) ( PrsBPA *pd );
     void (* DumpCorrSymbTd ) ( PrsBPA *pd );
     void (* CalcDeltas     ) ( PrsBPA *pd );
+    PrsPhi         *pPrsPhi;
 };
 
 

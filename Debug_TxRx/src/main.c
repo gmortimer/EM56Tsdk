@@ -415,6 +415,7 @@ void mainDumpRxPrsBPASlvReg( shell *psh );
 void mainDumpRxPrsBPA( shell *psh );
 void mainResetRxPrsBPA( shell *psh );
 void mainRxPrsBPACalcDelta( shell *psh );
+void mainRxPrsBPACalcDelta2( shell *psh );
 
 void mainRxPrsBPADumpCorSymbFd( shell *psh );
 void mainRxPrsBPADumpCorSymbTd( shell *psh );
@@ -804,6 +805,7 @@ shellCommandDef mainCmdDef[ ] = {
     { "BPA"  , "BPADmp"     ,  0, "                                        Dump  RxPrsBPA State"                 , mainDumpRxPrsBPA                     },
     { "BPA"  , "BPARst"     ,  0, "                                        Reset RxPrsBPA"                       , mainResetRxPrsBPA                    },
     { "BPA"  , "BPADelta"   ,  0, "                                        RxPrsBPA Calc Deltas"                 , mainRxPrsBPACalcDelta                },
+    { "BPA"  , "BPADelta2"  ,  0, "                                        RxPrsBPA Calc Deltas, 2 pass CIR"     , mainRxPrsBPACalcDelta2               },
     { "BPA"  , "BPAdCSFd"   ,  0, "                                        RxPrsBPA Dump Corr Symb Freq Dom"     , mainRxPrsBPADumpCorSymbFd            },
     { "BPA"  , "BPAdCSTd"   ,  0, "                                        RxPrsBPA Dump Corr Symb Time Dom"     , mainRxPrsBPADumpCorSymbTd            },
     { "BPA"  , "PrsBPA"     ,  0, "                                        Enter BPA Shell"                      , mainPrsBPAShell                      },
@@ -2768,6 +2770,13 @@ void mainResetRxPrsBPA( shell *psh )
 void mainRxPrsBPACalcDelta( shell *psh )
 {
     DVC_FUNC( pEMMSysCtrl->pRxPrsCIR, Calc );
+    DVC_FUNC( pEMMSysCtrl->pRxPrsBPA, CalcDeltas );
+}
+
+void mainRxPrsBPACalcDelta2( shell *psh )
+{
+    DVC_FUNC( pEMMSysCtrl->pRxPrsCIR, Calc );
+    DVC_FUNC( pEMMSysCtrl->pRxPrsCIR, Recalc );
     DVC_FUNC( pEMMSysCtrl->pRxPrsBPA, CalcDeltas );
 }
 

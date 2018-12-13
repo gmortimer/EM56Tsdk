@@ -113,7 +113,8 @@ AD9361_InitParam default_init_param = {
 	2400000000UL,	//tx_synthesizer_frequency_hz *** adi,tx-synthesizer-frequency-hz
 */
 	1220000000UL,	//rx_synthesizer_frequency_hz *** adi,rx-synthesizer-frequency-hz
-	1220195000UL,	//tx_synthesizer_frequency_hz *** adi,tx-synthesizer-frequency-hz
+//	1220195000UL,	//tx_synthesizer_frequency_hz *** adi,tx-synthesizer-frequency-hz
+    1220000000UL,   //tx_synthesizer_frequency_hz *** adi,tx-synthesizer-frequency-hz
 	/* Rate & BW Control */
 	{983040000, 245760000, 122880000, 61440000, 30720000, 30720000},//uint32_t	rx_path_clock_frequencies[6] *** adi,rx-path-clock-frequencies
 	{983040000, 122880000, 122880000, 61440000, 30720000, 30720000},//uint32_t	tx_path_clock_frequencies[6] *** adi,tx-path-clock-frequencies
